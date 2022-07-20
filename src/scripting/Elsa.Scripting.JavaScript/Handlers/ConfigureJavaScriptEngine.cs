@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Dynamic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Elsa.Models;
@@ -20,6 +22,7 @@ using MediatR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NodaTime;
 
 namespace Elsa.Scripting.JavaScript.Handlers
@@ -49,8 +52,8 @@ namespace Elsa.Scripting.JavaScript.Handlers
             // Global functions.
             engine.SetValue("guid", (Func<string>)(() => Guid.NewGuid().ToString()));
             engine.SetValue("parseGuid", (Func<string, Guid>)(Guid.Parse));
-            engine.SetValue("setVariable", (Action<string, object>)((name, value) => activityExecutionContext.SetVariable(name, value)));
-            engine.SetValue("getVariable", (Func<string, object?>)(name => activityExecutionContext.GetVariable(name)));
+            engine.SetValue("setVariable", (Action<string, object>)((name, value) => activityExecutionContext.SetVariable(name, ProcessVariable(value))));
+            engine.SetValue("getVariable", (Func<string, object?>)(name => ProcessVariable(activityExecutionContext.GetVariable(name))));
             engine.SetValue("getTransientVariable", (Func<string, object?>)(name => activityExecutionContext.GetTransientVariable(name)));
             engine.SetValue("isNullOrWhiteSpace", (Func<string, bool>)(string.IsNullOrWhiteSpace));
             engine.SetValue("isNullOrEmpty", (Func<string, bool>)(string.IsNullOrEmpty));
@@ -92,12 +95,13 @@ namespace Elsa.Scripting.JavaScript.Handlers
             engine.RegisterType<Guid>();
             engine.RegisterType<WorkflowExecutionContext>();
             engine.RegisterType<ActivityExecutionContext>();
+            engine.RegisterType<Encoding>();
 
             // Workflow variables.
             var variables = workflowExecutionContext.GetMergedVariables();
 
             foreach (var variable in variables.Data)
-                engine.SetValue(variable.Key, variable.Value);
+                engine.SetValue(variable.Key, ProcessVariable(variable.Value));
 
 
             // DEPRECATED: The following only works when activity state is stored as part of the workflow instance itself.
@@ -106,6 +110,21 @@ namespace Elsa.Scripting.JavaScript.Handlers
 
             await AddActivityOutputAsync(engine, activityExecutionContext, cancellationToken);
         }
+
+        /// <summary>
+        /// If the variable is a <see cref="JObject"/> or a <see cref="JArray"/>, convert it into an <see cref="ExpandoObject"/> or a list thereof, respectively.
+        /// Jint will then be able to deal with them as if they were native JavaScript objects and do things like JSON.stringify.
+        /// If the variable is an <see cref="ExpandoObject"/> or a list thereof, then it is converted back into a <see cref="JObject"/> or a <see cref="JArray"/>. 
+        /// </summary>
+        private object? ProcessVariable(object? value) =>
+            value switch
+            {
+                JArray jArray => jArray.Select(x => x.ToObject<ExpandoObject>()).ToList(),
+                JObject jObject => jObject.ToObject<ExpandoObject>(),
+                ExpandoObject expandoObject => JObject.FromObject(expandoObject),
+                ICollection<ExpandoObject> expandoObjects => new JArray(expandoObjects.Select(JObject.FromObject)),
+                _ => value
+            };
 
         private async Task AddActivityOutputAsync(Engine engine, ActivityExecutionContext activityExecutionContext, CancellationToken cancellationToken)
         {

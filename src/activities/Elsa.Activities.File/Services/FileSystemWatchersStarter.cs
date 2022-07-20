@@ -24,7 +24,8 @@ namespace Elsa.Activities.File.Services
         private readonly ICollection<FileSystemWatcher> _watchers;
         private readonly IBookmarkSerializer _bookmarkSerializer;
 
-        public FileSystemWatchersStarter(ILogger<FileSystemWatchersStarter> logger,
+        public FileSystemWatchersStarter(
+            ILogger<FileSystemWatchersStarter> logger,
             IMapper mapper,
             IServiceScopeFactory scopeFactory,
             IBookmarkSerializer bookmarkSerializer)
@@ -46,8 +47,9 @@ namespace Elsa.Activities.File.Services
 
                 using var scope = _scopeFactory.CreateScope();
                 var triggerFinder = scope.ServiceProvider.GetRequiredService<ITriggerFinder>();
-                await triggerFinder.FindTriggersAsync<WatchDirectory>(null, cancellationToken);
-                
+                var triggerRemover = scope.ServiceProvider.GetRequiredService<ITriggerRemover>();
+                await triggerFinder.FindTriggersAsync<WatchDirectory>(cancellationToken: cancellationToken);
+
                 var triggers = await triggerFinder.FindTriggersByTypeAsync<FileSystemEventBookmark>(cancellationToken: cancellationToken);
 
                 foreach (var trigger in triggers)
@@ -58,7 +60,30 @@ namespace Elsa.Activities.File.Services
                     var notifyFilters = bookmark.NotifyFilters;
                     var path = bookmark.Path;
                     var pattern = bookmark.Pattern;
-                    CreateAndAddWatcher(path, pattern, changeTypes, notifyFilters);
+                    try
+                    {
+                        CreateAndAddWatcher(path, pattern, changeTypes, notifyFilters);
+                    }
+                    catch (IOException ex)
+                    {
+                        _logger.LogWarning(ex,
+                            $"Watcher with path \"{path}\" and pattern \"{pattern}\" causes IOException. Removing Trigger.",
+                            path,
+                            pattern,
+                            changeTypes,
+                            notifyFilters);
+                        await triggerRemover.RemoveTriggerAsync(trigger);
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        _logger.LogWarning(ex,
+                            $"Watcher with path \"{path}\" and pattern \"{pattern}\" is not valid. Removing Trigger.",
+                            path,
+                            pattern,
+                            changeTypes,
+                            notifyFilters);
+                        await triggerRemover.RemoveTriggerAsync(trigger);
+                    }
                 }
             }
             finally
@@ -66,7 +91,7 @@ namespace Elsa.Activities.File.Services
                 _semaphore.Release();
             }
         }
-        
+
         private void DisposeExistingWatchers()
         {
             foreach (var watcher in _watchers.ToList())
@@ -118,6 +143,7 @@ namespace Elsa.Activities.File.Services
         }
 
         #region Watcher delegates
+
         private void FileCreated(object sender, FileSystemEventArgs e)
         {
             StartWorkflow((FileSystemWatcher)sender, e);
@@ -158,6 +184,7 @@ namespace Elsa.Activities.File.Services
             var workflowLaunchpad = scope.ServiceProvider.GetRequiredService<IWorkflowLaunchpad>();
             await workflowLaunchpad.CollectAndDispatchWorkflowsAsync(launchContext, new WorkflowInput(model));
         }
+
         #endregion
     }
 }

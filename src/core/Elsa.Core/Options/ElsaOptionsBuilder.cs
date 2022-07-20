@@ -150,6 +150,7 @@ namespace Elsa.Options
 
         public ElsaOptionsBuilder AddCompetingMessageType(Type messageType, string? queueName = default)
         {
+            queueName ??= messageType.Name;
             ElsaOptions.CompetingMessageTypes.Add(new MessageTypeConfig(messageType, queueName));
             return this;
         }
@@ -190,13 +191,13 @@ namespace Elsa.Options
             return this;
         }
 
-        public ElsaOptionsBuilder UseWorkflowTriggerStore(Func<IServiceProvider, IBookmarkStore> factory)
+        public ElsaOptionsBuilder UseBookmarkStore(Func<IServiceProvider, IBookmarkStore> factory)
         {
             ElsaOptions.BookmarkStoreFactory = factory;
             return this;
         }
 
-        public ElsaOptionsBuilder UseWorkflowBookmarkTriggerStore(Func<IServiceProvider, ITriggerStore> factory)
+        public ElsaOptionsBuilder UseTriggerStore(Func<IServiceProvider, ITriggerStore> factory)
         {
             ElsaOptions.TriggerStoreFactory = factory;
             return this;

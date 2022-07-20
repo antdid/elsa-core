@@ -32,6 +32,12 @@ namespace Elsa.Decorators
             return await FindInternalAsync(cacheKey, () => _workflowRegistry.FindAsync(definitionId, versionOptions, tenantId, cancellationToken), cancellationToken);
         }
 
+        public async Task<IWorkflowBlueprint?> FindByDefinitionVersionIdAsync(string definitionVersionId, string? tenantId = default, CancellationToken cancellationToken = default)
+        {
+            var cacheKey = $"{RootKey}:definition-version:id:{definitionVersionId}:{tenantId}";
+            return await FindInternalAsync(cacheKey, () => _workflowRegistry.FindByDefinitionVersionIdAsync(definitionVersionId, tenantId, cancellationToken), cancellationToken);
+        }
+
         public async Task<IWorkflowBlueprint?> FindByNameAsync(string name, VersionOptions versionOptions, string? tenantId = default, CancellationToken cancellationToken = default)
         {
             var cacheKey = $"{RootKey}:definition:name:{name}:{versionOptions}:{tenantId}";
@@ -42,6 +48,18 @@ namespace Elsa.Decorators
         {
             var cacheKey = $"{RootKey}:definition:name:{tag}:{versionOptions}:{tenantId}";
             return await FindInternalAsync(cacheKey, () => _workflowRegistry.FindByTagAsync(tag, versionOptions, tenantId, cancellationToken), cancellationToken);
+        }
+
+        public async Task<IEnumerable<IWorkflowBlueprint>> FindManyByTagAsync(string tag, VersionOptions versionOptions, string? tenantId = default, CancellationToken cancellationToken = default)
+        {
+            // TODO: Maybe cache this as well?
+            return await _workflowRegistry.FindManyByTagAsync(tag, versionOptions, tenantId, cancellationToken);
+        }
+
+        public async Task<IEnumerable<IWorkflowBlueprint>> FindManyByDefinitionIds(IEnumerable<string> definitionIds, VersionOptions versionOptions, CancellationToken cancellationToken)
+        {
+            // TODO: Maybe cache this as well?
+            return await _workflowRegistry.FindManyByDefinitionIds(definitionIds, versionOptions, cancellationToken);
         }
 
         public async Task<IEnumerable<IWorkflowBlueprint>> FindManyByDefinitionVersionIds(IEnumerable<string> definitionVersionIds, CancellationToken cancellationToken)
@@ -55,6 +73,8 @@ namespace Elsa.Decorators
             // TODO: Maybe cache this as well?
             return await _workflowRegistry.FindManyByNames(names, cancellationToken);
         }
+
+        public void Add(IWorkflowBlueprint workflowBlueprint) => _workflowRegistry.Add(workflowBlueprint);
 
         public async Task<IWorkflowBlueprint?> FindInternalAsync(string cacheKey, Func<Task<IWorkflowBlueprint?>> findAction, CancellationToken cancellationToken = default)
         {

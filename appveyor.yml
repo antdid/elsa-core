@@ -1,7 +1,7 @@
 image: Visual Studio 2022
 
 environment:
-    elsa_version: 2.5.1
+    elsa_version: 2.9.0
     elsa_build_version: 0.0.0
     nodejs_version: "14.6.0"
     # AppVeyor installs Java on its build agents by default, but it
@@ -25,7 +25,7 @@ init:
                 $env:elsa_build_version="$($env:elsa_version)-preview.$($env:APPVEYOR_BUILD_NUMBER)"
             }
 
-version: 2.5.1.{build}
+version: 2.9.0.{build}
 
 pull_requests:
     do_not_increment_build_number: true
@@ -54,6 +54,8 @@ install:
             cd ..\bindings\aspnet\Elsa.Designer.Components.Web
 
             npm install --force
+            npm install -g webpack
+            npm install -g webpack-cli
 
             cd ..\..\..\..\..
 
@@ -101,7 +103,9 @@ after_test:
 
 artifacts:
     -   path: '**/*.nupkg'
-        name: Packages
+        name: Packages        
+    -   path: '**/*.snupkg'
+        name: Symbol Packages
     -   path: '**/TestResults/TestResults.xml'
 
 deploy:
@@ -121,7 +125,7 @@ deploy:
         name: MyGet
         server: https://www.myget.org/F/elsa-2/api/v2/package
         api_key:
-            secure: JfESkwmLdWU7dzvoqKPUfMemb00wX8AEYxeHCsYWTX1LfTeECdmKdZxz7IVUpebb
+            secure: q/BL44D5KIMecFP4hzIb/OvWIZ37NfRo7PamDQv8XWfyoqCSn8F4y32wRB0ZbF0d
         skip_symbols: false
         symbol_server: https://www.myget.org/F/elsa-2/api/v2/symbolpackage # remove to push symbols to SymbolSource.org
         artifact: /.*(\.|\.s)nupkg/

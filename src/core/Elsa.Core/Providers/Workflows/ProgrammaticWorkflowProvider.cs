@@ -36,6 +36,12 @@ namespace Elsa.Providers.Workflows
             return new ValueTask<IWorkflowBlueprint?>(workflowBlueprint);
         }
 
+        public override ValueTask<IWorkflowBlueprint?> FindByDefinitionVersionIdAsync(string definitionVersionId, string? tenantId = default, CancellationToken cancellationToken = default)
+        {
+            var workflowBlueprint = GetWorkflows().FirstOrDefault(x => x.VersionId == definitionVersionId);
+            return new ValueTask<IWorkflowBlueprint?>(workflowBlueprint);
+        }
+
         public override ValueTask<IWorkflowBlueprint?> FindByNameAsync(string name, VersionOptions versionOptions, string? tenantId = default, CancellationToken cancellationToken = default)
         {
             var workflowBlueprint = GetWorkflows().FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase) && x.WithVersion(versionOptions));
@@ -48,6 +54,12 @@ namespace Elsa.Providers.Workflows
             return new ValueTask<IWorkflowBlueprint?>(workflowBlueprint);
         }
 
+        public override ValueTask<IEnumerable<IWorkflowBlueprint>> FindManyByDefinitionIds(IEnumerable<string> definitionIds, VersionOptions versionOptions, CancellationToken cancellationToken = default)
+        {
+            var workflowBlueprints = GetWorkflows().Where(x => definitionIds.Contains(x.VersionId) && x.WithVersion(versionOptions)).ToList();
+            return new ValueTask<IEnumerable<IWorkflowBlueprint>>(workflowBlueprints);
+        }
+
         public override ValueTask<IEnumerable<IWorkflowBlueprint>> FindManyByDefinitionVersionIds(IEnumerable<string> definitionVersionIds, CancellationToken cancellationToken = default)
         {
             var workflowBlueprints = GetWorkflows().Where(x => definitionVersionIds.Contains(x.VersionId)).ToList();
@@ -57,6 +69,12 @@ namespace Elsa.Providers.Workflows
         public override ValueTask<IEnumerable<IWorkflowBlueprint>> FindManyByNames(IEnumerable<string> names, CancellationToken cancellationToken = default)
         {
             var workflowBlueprints = GetWorkflows().Where(x => names.Contains(x.VersionId)).ToList();
+            return new ValueTask<IEnumerable<IWorkflowBlueprint>>(workflowBlueprints);
+        }
+
+        public override ValueTask<IEnumerable<IWorkflowBlueprint>> FindManyByTagAsync(string tag, VersionOptions versionOptions, string? tenantId = default, CancellationToken cancellationToken = default)
+        {
+            var workflowBlueprints = GetWorkflows().Where(x => string.Equals(x.Tag, tag, StringComparison.OrdinalIgnoreCase)).ToList();
             return new ValueTask<IEnumerable<IWorkflowBlueprint>>(workflowBlueprints);
         }
 
